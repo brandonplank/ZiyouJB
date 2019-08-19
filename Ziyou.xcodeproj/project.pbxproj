@@ -31,6 +31,7 @@
 		B8346CE42283BE99009F6311 /* lzssdec.cpp in Sources */ = {isa = PBXBuildFile; fileRef = B8346CE22283BE99009F6311 /* lzssdec.cpp */; };
 		B862F49F22C8261F003B79E6 /* SettingsViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = B862F49E22C8261F003B79E6 /* SettingsViewController.m */; };
 		B866F3CE228B7A7200616377 /* machswap2.m in Sources */ = {isa = PBXBuildFile; fileRef = B866F3CC228B7A7200616377 /* machswap2.m */; };
+		B872296A230A2D2000440993 /* cpBootHash.c in Sources */ = {isa = PBXBuildFile; fileRef = B8722968230A2D2000440993 /* cpBootHash.c */; };
 		B88347192284DBCE00DBA046 /* vnode_utils.m in Sources */ = {isa = PBXBuildFile; fileRef = B88347182284DBCE00DBA046 /* vnode_utils.m */; };
 		B883471E2284DC7300DBA046 /* libsnappy.c in Sources */ = {isa = PBXBuildFile; fileRef = B883471C2284DC7300DBA046 /* libsnappy.c */; };
 		B89BAA1322826A9F00964B6F /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = B89BAA1222826A9F00964B6F /* AppDelegate.m */; };
@@ -108,6 +109,8 @@
 		B862F49E22C8261F003B79E6 /* SettingsViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = SettingsViewController.m; sourceTree = "<group>"; };
 		B866F3CC228B7A7200616377 /* machswap2.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = machswap2.m; sourceTree = "<group>"; };
 		B866F3CD228B7A7200616377 /* machswap2.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = machswap2.h; sourceTree = "<group>"; };
+		B8722968230A2D2000440993 /* cpBootHash.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = cpBootHash.c; sourceTree = "<group>"; };
+		B8722969230A2D2000440993 /* cpBootHash.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = cpBootHash.h; sourceTree = "<group>"; };
 		B88347182284DBCE00DBA046 /* vnode_utils.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = vnode_utils.m; sourceTree = "<group>"; };
 		B883471A2284DC4A00DBA046 /* vnode_utils.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = vnode_utils.h; sourceTree = "<group>"; };
 		B883471C2284DC7300DBA046 /* libsnappy.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = libsnappy.c; sourceTree = "<group>"; };
@@ -475,6 +478,8 @@
 				B8E8A9B922891CE00049F87D /* insert_dylib.h */,
 				B8D6CFEE22D8DCC800437880 /* shenanigans.m */,
 				B8D6CFEF22D8DCC800437880 /* shenanigans.h */,
+				B8722968230A2D2000440993 /* cpBootHash.c */,
+				B8722969230A2D2000440993 /* cpBootHash.h */,
 			);
 			path = utils;
 			sourceTree = "<group>";
@@ -669,6 +674,7 @@
 				B8E7D08A22E3B75C00D1D85F /* exploit.c in Sources */,
 				B89BAA1322826A9F00964B6F /* AppDelegate.m in Sources */,
 				B8C4ECEF22920824008F9068 /* OSObj.c in Sources */,
+				B872296A230A2D2000440993 /* cpBootHash.c in Sources */,
 				B8B3F97D2283B205000E8427 /* user_client.c in Sources */,
 				B8D6CFF022D8DCC800437880 /* shenanigans.m in Sources */,
 				B8E8A9BA22891CE00049F87D /* insert_dylib.c in Sources */,
@@ -828,7 +834,7 @@
 					IOKit,
 					"$(inherited)",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = team.ziyou.ziyou;
+				PRODUCT_BUNDLE_IDENTIFIER = team.ziyou.ziyou.chr0nic;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				TARGETED_DEVICE_FAMILY = "1,2";
 				VALID_ARCHS = "arm64 arm64e";
@@ -852,7 +858,7 @@
 					IOKit,
 					"$(inherited)",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = team.ziyou.ziyou;
+				PRODUCT_BUNDLE_IDENTIFIER = team.ziyou.ziyou.chr0nic;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				TARGETED_DEVICE_FAMILY = "1,2";
 				VALID_ARCHS = "arm64 arm64e";

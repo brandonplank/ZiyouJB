@@ -41,6 +41,7 @@
 #include <copyfile.h>
 #include "insert_dylib.h"
 #include "vnode_utils.h"
+#include "cpBootHash.h"
 #include "libsnappy.h"
 #include <sys/stat.h>
 #include <sys/snapshot.h>
@@ -912,6 +913,8 @@ void getOffsets() {
     found_offs = true;
     term_kernel();
     
+    clean_file(decompressed_kernel_cache_path);
+    
     if (runShenPatchOWO)
     {
         LOG("We are going to use the shenanigans patch.");
@@ -1251,6 +1254,9 @@ int trust_file(NSString *path) {
     return 0;
 }
 
+
+
+
 void renameSnapshot(int rootfd, const char* rootFsMountPoint, const char **snapshots, const char *origfs)
 {
     LOG("Renaming snapshot...");
@@ -1310,28 +1316,34 @@ void renameSnapshot(int rootfd, const char* rootFsMountPoint, const char **snaps
     reboot(RB_QUICK);
 }
 
+
 void preMountFS(const char *thedisk, int root_fs, const char **snapshots, const char *origfs)
 {
     LOG("Pre-Mounting RootFS...");
-    _assert(!is_mountpoint("/var/MobileSoftwareUpdate/mnt1"), @"RootFS already mounted, delete OTA file from Settings - Storage if present and reboot.", true);
-    const char *rootFsMountPoint = "/private/var/tmp/jb/mnt1";
+
+    _assert(!is_mountpoint("/var/MobileSoftwareUpdate/mnt1"), invalidRootMessage, true);
+    char *const rootFsMountPoint = "/private/var/tmp/jb/mnt1";
     if (is_mountpoint(rootFsMountPoint)) {
-        _assert(unmount(rootFsMountPoint, MNT_FORCE) == ERR_SUCCESS, @"Failed to clear dev vnode's si_flags.", true);
+        _assert(unmount(rootFsMountPoint, MNT_FORCE) == ERR_SUCCESS, localize(@"Unable to unmount old RootFS mount point."), true);
     }
-    _assert(clean_file(rootFsMountPoint), @"Failed to clear dev vnode's si_flags.", true);
-    _assert(ensure_directory(rootFsMountPoint, 0, 0755), @"Failed to clear dev vnode's si_flags.", true);
+    _assert(clean_file(rootFsMountPoint), localize(@"Unable to clean old RootFS mount point."), true);
+    char *const hardwareMountPoint = "/private/var/hardware";
+    if (is_mountpoint(hardwareMountPoint)) {
+        _assert(unmount(hardwareMountPoint, MNT_FORCE) == ERR_SUCCESS, localize(@"Unable to unmount hardware mount point."), true);
+    }
+    _assert(ensure_directory(rootFsMountPoint, 0, 0755), localize(@"Unable to create RootFS mount point."), true);
     const char *argv[] = {"/sbin/mount_apfs", thedisk, rootFsMountPoint, NULL};
     _assert(execCmdV(argv[0], 3, argv, ^(pid_t pid) {
-        uint64_t procStructAddr = get_proc_struct_for_pid(pid);
+        kptr_t const procStructAddr = get_proc_struct_for_pid(pid);
         LOG("procStructAddr = " ADDR, procStructAddr);
-        _assert(ISADDR(procStructAddr), @"Failed to clear dev vnode's si_flags.", true);
+        _assert(KERN_POINTER_VALID(procStructAddr), localize(@"Unable to find mount_apfs's process in kernel memory."), true);
         give_creds_to_process_at_addr(procStructAddr, get_kernel_cred_addr());
-    }) == ERR_SUCCESS, @"Failed to clear dev vnode's si_flags.", true);
-    _assert(execCmd("/sbin/mount", NULL) == ERR_SUCCESS, @"Failed to clear dev vnode's si_flags.", true);
+    }) == ERR_SUCCESS, localize(@"Unable to mount RootFS."), true);
+    _assert(execCmd("/sbin/mount", NULL) == ERR_SUCCESS, localize(@"Unable to print new mount list."), true);
     const char *systemSnapshotLaunchdPath = [@(rootFsMountPoint) stringByAppendingPathComponent:@"sbin/launchd"].UTF8String;
-    _assert(waitFF(systemSnapshotLaunchdPath) == ERR_SUCCESS, @"Failed to clear dev vnode's si_flags.", true);
+    _assert(waitFF(systemSnapshotLaunchdPath) == ERR_SUCCESS, localize(@"Unable to verify newly mounted RootFS."), true);
     LOG("Successfully mounted RootFS.");
-    
+
     renameSnapshot(root_fs, rootFsMountPoint, snapshots, origfs);
 }
 
@@ -1376,8 +1388,27 @@ bool copyMe(const char *from, const char *to)
     return false;
 }
 
+
+
+struct hfs_mount_args {
+    char    *fspec;            /* block special device to mount */
+    uid_t    hfs_uid;        /* uid that owns hfs files (standard HFS only) */
+    gid_t    hfs_gid;        /* gid that owns hfs files (standard HFS only) */
+    mode_t    hfs_mask;        /* mask to be applied for hfs perms  (standard HFS only) */
+    u_int32_t hfs_encoding;    /* encoding for this volume (standard HFS only) */
+    struct    timezone hfs_timezone;    /* user time zone info (standard HFS only) */
+    int        flags;            /* mounting flags, see below */
+    int     journal_tbuffer_size;   /* size in bytes of the journal transaction buffer */
+    int        journal_flags;          /* flags to pass to journal_open/create */
+    int        journal_disable;        /* don't use journaling (potentially dangerous) */
+};
+
+
+
+
+
+
 void remountFS(bool shouldRestore) {
-    
     
     //Vars
     int root_fs = open("/", O_RDONLY);

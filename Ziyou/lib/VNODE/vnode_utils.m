@@ -16,6 +16,7 @@
 #include "kernel_slide.h"
 #include "kernel_exec.h"
 #include "kernel_memory.h"
+#include "unlocknvram.h"
 #include "OffsetHolder.h"
 
 // thx Siguza
@@ -111,106 +112,63 @@ int _vnode_put(uint64_t vnode){
 }
 
 
+#define _assert(test) do { \
+if (test) break; \
+int saved_errno = errno; \
+LOG("_assert(%d:%s)%u[%s]", saved_errno, #test, __LINE__, __FUNCTION__); \
+errno = saved_errno; \
+goto out; \
+} while(false)
+#define SafeIOFree(x, size) do { if (KERN_POINTER_VALID(x)) IOFree(x, size); } while(false)
+#define SafeIOFreeNULL(x, size) do { SafeIOFree(x, size); (x) = KPTR_NULL; } while(false)
 
-
-uint64_t vnodeForSnapshot(int fd, char *name) {
-    uint64_t rvpp_ptr = 0;
-    uint64_t sdvpp_ptr = 0;
-    uint64_t ndp_buf = 0;
-    uint64_t vfs_context = 0;
-    uint64_t sdvpp = 0;
-    uint64_t sdvpp_v_mount = 0;
-    uint64_t sdvpp_v_mount_mnt_data = 0;
-    uint64_t snap_meta_ptr = 0;
-    uint64_t old_name_ptr = 0;
-    uint32_t ndp_old_name_len = 0;
-    uint64_t ndp_old_name = 0;
-    uint64_t snap_meta = 0;
-    uint64_t snap_vnode = 0;
-    rvpp_ptr = kmem_alloc(sizeof(uint64_t));
-    LOG("rvpp_ptr = " ADDR, rvpp_ptr);
-    if (!ISADDR(rvpp_ptr)) {
-        goto out;
-    }
-    sdvpp_ptr = kmem_alloc(sizeof(uint64_t));
-    LOG("sdvpp_ptr = " ADDR, sdvpp_ptr);
-    if (!ISADDR(sdvpp_ptr)) {
-        goto out;
-    }
-    ndp_buf = kmem_alloc(816);
-    LOG("ndp_buf = " ADDR, ndp_buf);
-    if (!ISADDR(ndp_buf)) {
-        goto out;
-    }
-    vfs_context = _vfs_context();
-    LOG("vfs_context = " ADDR, vfs_context);
-    if (!ISADDR(vfs_context)) {
-        goto out;
-    }
-    if (kexecute2(GETOFFSET(vnode_get_snapshot), fd, rvpp_ptr, sdvpp_ptr, (uint64_t)name, ndp_buf, 2, vfs_context) != ERR_SUCCESS) {
-        goto out;
-    }
+kptr_t vnodeForSnapshot(int fd, char *name) {
+    kptr_t ret = KPTR_NULL;
+    kptr_t snap_vnode, rvpp_ptr, sdvpp_ptr, ndp_buf, sdvpp, snap_meta_ptr, old_name_ptr, ndp_old_name;
+    snap_vnode = rvpp_ptr = sdvpp_ptr = ndp_buf = sdvpp = snap_meta_ptr = old_name_ptr = ndp_old_name = KPTR_NULL;
+    size_t rvpp_ptr_size, sdvpp_ptr_size, ndp_buf_size, snap_meta_ptr_size, old_name_ptr_size;
+    ndp_buf_size = 816;
+    rvpp_ptr_size = sdvpp_ptr_size = snap_meta_ptr_size = old_name_ptr_size = sizeof(kptr_t);
+    rvpp_ptr = IOMalloc(rvpp_ptr_size);
+     LOG("rvpp_ptr = " ADDR, rvpp_ptr);
+    sdvpp_ptr = IOMalloc(sdvpp_ptr_size);
+     LOG("sdvpp_ptr = " ADDR, sdvpp_ptr);
+    ndp_buf = IOMalloc(ndp_buf_size);
+     LOG("ndp_buf = " ADDR, ndp_buf);
+    kptr_t const vfs_context = _vfs_context();
+     LOG("vfs_context = " ADDR, vfs_context);
+    _assert(kexecute2(GETOFFSET(vnode_get_snapshot), fd, rvpp_ptr, sdvpp_ptr, (kptr_t)name, ndp_buf, 2, vfs_context) == 0);
     sdvpp = ReadKernel64(sdvpp_ptr);
-    LOG("sdvpp = " ADDR, sdvpp);
-    if (!ISADDR(sdvpp)) {
-        goto out;
-    }
-    sdvpp_v_mount = ReadKernel64(sdvpp + koffset(KSTRUCT_OFFSET_VNODE_V_MOUNT));
-    LOG("sdvpp_v_mount = " ADDR, sdvpp_v_mount);
-    if (!ISADDR(sdvpp_v_mount)) {
-        goto out;
-    }
-    sdvpp_v_mount_mnt_data = ReadKernel64(sdvpp_v_mount + koffset(KSTRUCT_OFFSET_MOUNT_MNT_DATA));
-    LOG("sdvpp_v_mount_mnt_data = " ADDR, sdvpp_v_mount_mnt_data);
-    if (!ISADDR(sdvpp_v_mount_mnt_data)) {
-        goto out;
-    }
-    snap_meta_ptr = kmem_alloc(sizeof(uint64_t));
-    LOG("snap_meta_ptr = " ADDR, snap_meta_ptr);
-    if (!ISADDR(snap_meta_ptr)) {
-        goto out;
-    }
-    old_name_ptr = kmem_alloc(sizeof(uint64_t));
-    LOG("old_name_ptr = " ADDR, old_name_ptr);
-    if (!ISADDR(old_name_ptr)) {
-        goto out;
-    }
-    ndp_old_name_len = ReadKernel32(ndp_buf + 336 + 48);
-    LOG("ndp_old_name_len = 0x%x", ndp_old_name_len);
+     LOG("sdvpp_ptr = " ADDR, sdvpp_ptr);
+    kptr_t const sdvpp_v_mount = ReadKernel64(sdvpp + koffset(KSTRUCT_OFFSET_VNODE_V_MOUNT));
+     LOG("sdvpp_v_mount = " ADDR, sdvpp_v_mount);
+    kptr_t const sdvpp_v_mount_mnt_data = ReadKernel64(sdvpp_v_mount + koffset(KSTRUCT_OFFSET_MOUNT_MNT_DATA));
+     LOG("sdvpp_v_mnt_data = " ADDR, sdvpp_v_mount_mnt_data);
+    snap_meta_ptr = IOMalloc(snap_meta_ptr_size);
+     LOG("snap_meta_ptr = " ADDR, snap_meta_ptr);
+    old_name_ptr = IOMalloc(old_name_ptr_size);
+     LOG("old_name_ptr = " ADDR, old_name_ptr);
     ndp_old_name = ReadKernel64(ndp_buf + 336 + 40);
-    LOG("ndp_old_name = " ADDR, ndp_old_name);
-    if (!ISADDR(ndp_old_name)) {
-        goto out;
-    }
-    if (kexecute2(GETOFFSET(fs_lookup_snapshot_metadata_by_name_and_return_name), sdvpp_v_mount_mnt_data, ndp_old_name, ndp_old_name_len, snap_meta_ptr, old_name_ptr, 0, 0) != ERR_SUCCESS) {
-        goto out;
-    }
-    snap_meta = ReadKernel64(snap_meta_ptr);
-    LOG("snap_meta = " ADDR, snap_meta);
-    if (!ISADDR(snap_meta)) {
-        goto out;
-    }
+     LOG("ndp_old_name = " ADDR, ndp_old_name);
+    kptr_t const ndp_old_name_len = ReadKernel32(ndp_buf + 336 + 48);
+     LOG("ndp_old_name_len = " ADDR, ndp_old_name_len);
+    _assert(kexecute2(GETOFFSET(fs_lookup_snapshot_metadata_by_name_and_return_name), sdvpp_v_mount_mnt_data, ndp_old_name, ndp_old_name_len, snap_meta_ptr, old_name_ptr, 0, 0) == 0);
+    kptr_t const snap_meta = ReadKernel64(snap_meta_ptr);
+     LOG("snap_meta = " ADDR, snap_meta);
     snap_vnode = kexecute2(GETOFFSET(apfs_jhash_getvnode), sdvpp_v_mount_mnt_data, ReadKernel32(sdvpp_v_mount_mnt_data + 440), ReadKernel64(snap_meta + 8), 1, 0, 0, 0);
-    snap_vnode = zm_fix_addr(snap_vnode);
     LOG("snap_vnode = " ADDR, snap_vnode);
-    if (!ISADDR(snap_vnode)) {
-        goto out;
-    }
+    if (snap_vnode != KPTR_NULL) snap_vnode = zm_fix_addr(snap_vnode);
+    _assert(KERN_POINTER_VALID(snap_vnode));
+    ret = snap_vnode;
     out:
-    if (ISADDR(sdvpp)) {
-        _vnode_put(sdvpp);
-    }
-    if (ISADDR(sdvpp_ptr)) {
-        kmem_free(sdvpp_ptr, sizeof(uint64_t));
-    }
-    if (ISADDR(ndp_buf)) {
-        kmem_free(ndp_buf, 816);
-    }
-    if (ISADDR(snap_meta_ptr)) {
-        kmem_free(snap_meta_ptr, sizeof(uint64_t));
-    }
-    if (ISADDR(old_name_ptr)) {
-        kmem_free(old_name_ptr, sizeof(uint64_t));
-    }
-    return snap_vnode;
+    if (KERN_POINTER_VALID(sdvpp)) _vnode_put(sdvpp); sdvpp = KPTR_NULL;
+    
+    
+    
+    
+    SafeIOFreeNULL(sdvpp_ptr, sdvpp_ptr_size);
+    SafeIOFreeNULL(ndp_buf, ndp_buf_size);
+    SafeIOFreeNULL(snap_meta_ptr, snap_meta_ptr_size);
+    SafeIOFreeNULL(old_name_ptr, old_name_ptr_size);
+    return ret;
 }
